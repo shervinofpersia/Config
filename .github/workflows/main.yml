@@ -1,0 +1,38 @@
+name: Update ProxyNg.json
+
+on:
+  schedule:
+    # هر 30 دقیقه
+    - cron: '*/30 * * * *'
+  workflow_dispatch:   # اجرای دستی
+
+jobs:
+  update-proxies:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # برای push کردن تغییرات
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests pycountry
+
+      - name: Run script
+        run: python update_proxies.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add ProxyNg.json
+          git diff --quiet && git diff --staged --quiet || (
+            git commit -m "🔄 Update ProxyNg.json ($(date -u +"%Y-%m-%dT%H:%M:%SZ"))"
+            git push
+          )
