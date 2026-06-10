@@ -1,18 +1,17 @@
 import requests
-import json
 import urllib.parse
 import pycountry
 import os
 
-# لینک منبع
 SOURCE_URL = "https://raw.githubusercontent.com/shervinofpersia/PsiphonProxy/refs/heads/main/proxies.json"
-# ریمارک ثابت (بدون URL encode)
-REMARK = "☬SHΞN™🪽"
+REMARK = "☬SHΞN™🪽"   # بدون هیچ عددی
 
 def country_name_to_flag(name):
-    """تبدیل نام کشور به ایموجی پرچم با استفاده از pycountry و اصلاحات دستی"""
-    # اصلاحات دستی برای مواردی که pycountry نمی‌شناسد
-    manual_map = {
+    """تبدیل نام کشور به ایموجی پرچم (بدون عدد)"""
+    if not name:
+        return ""
+
+    manual = {
         "Russian Federation": "RU",
         "Iran, Islamic Republic of": "IR",
         "United States": "US",
@@ -22,38 +21,48 @@ def country_name_to_flag(name):
         "Hong Kong": "HK",
         "Netherlands": "NL",
         "United Kingdom": "GB",
-        "Kazakstan": "KZ",          # املای نادرست در داده‌ها
+        "Kazakstan": "KZ",
         "Bahamas": "BS",
         "Macedonia": "MK",
         "Palestine, State of": "PS",
+        "Viet Nam": "VN",
+        "Syrian Arab Republic": "SY",
+        "Lao People's Democratic Republic": "LA",
+        "Republic of Moldova": "MD",
     }
     name = name.strip()
-    if name in manual_map:
-        code = manual_map[name]
+    if name in manual:
+        code = manual[name]
     else:
         try:
             country = pycountry.countries.lookup(name)
             code = country.alpha_2
         except LookupError:
             try:
-                # جستجوی فازی
                 matches = pycountry.countries.search_fuzzy(name)
                 code = matches[0].alpha_2 if matches else ""
-            except Exception:
+            except:
                 code = ""
     if code:
-        # تبدیل کد دوحرفی به ایموجی پرچم (A => 🇦)
-        return ''.join(chr(ord(c) + 127397) for c in code.upper())
+        return "".join(chr(ord(c) + 127397) for c in code.upper())
     return ""
 
-def generate_fragment(country_flag):
-    """ساخت بخش #... با ریمارک + پرچم و URL-encode کامل"""
-    fragment = REMARK + country_flag
-    return urllib.parse.quote(fragment, safe='')
+def interleave_lists(list1, list2):
+    """آمیختن دو لیست به صورت یکی درمیان"""
+    result = []
+    min_len = min(len(list1), len(list2))
+    for i in range(min_len):
+        result.append(list1[i])
+        result.append(list2[i])
+    # اضافه کردن باقی‌مانده از لیست بلندتر
+    if len(list1) > min_len:
+        result.extend(list1[min_len:])
+    elif len(list2) > min_len:
+        result.extend(list2[min_len:])
+    return result
 
 def main():
-    # دانلود JSON
-    resp = requests.get(SOURCE_URL)
+    resp = requests.get(SOURCE_URL, timeout=10)
     resp.raise_for_status()
     data = resp.json()
 
@@ -61,7 +70,7 @@ def main():
     http_lines = []
 
     for item in data:
-        proxy_type = (item.get('type', '')).lower()
+        proxy_type = item.get('type', '').lower()
         ip = item.get('ip') or item.get('host')
         port = item.get('port')
         country = item.get('country', '')
@@ -69,27 +78,24 @@ def main():
         if not ip or not port:
             continue
 
-        flag = country_name_to_flag(country) if country else ""
-        fragment = generate_fragment(flag)
+        flag = country_name_to_flag(country)
+        fragment = REMARK + flag   # فقط ریمارک و پرچم، بدون عدد
+        fragment_encoded = urllib.parse.quote(fragment, safe='')
 
-        # پروکسی‌های SOCKS5 (حتی اگر SOCKS4, SOCKS5 ترکیبی باشد)
         if 'socks5' in proxy_type:
-            socks_lines.append(f"socks5://{ip}:{port}#{fragment}")
+            socks_lines.append(f"socks5://{ip}:{port}#{fragment_encoded}")
         elif 'http' in proxy_type or 'https' in proxy_type:
-            # برای http و https از http استفاده می‌کنیم (طبق نمونه)
-            scheme = 'http'
-            http_lines.append(f"{scheme}://{ip}:{port}#{fragment}")
+            http_lines.append(f"http://{ip}:{port}#{fragment_encoded}")
 
-    # ادغام (اول SOCKS5 سپس HTTP)
-    all_lines = socks_lines + http_lines
+    # چینش مخلوط (یکی درمیان)
+    all_lines = interleave_lists(socks_lines, http_lines)
 
-    # ذخیره‌سازی در کنار همین فایل
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_path = os.path.join(script_dir, 'ProxyNg.json')
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(all_lines))
 
-    print(f"✔️ {len(all_lines)} پروکسی در {output_path} ذخیره شد.")
+    print(f"✔️ {len(all_lines)} پروکسی در {output_path} ذخیره شد. (چینش: یک SOCKS5 و یک HTTP به نوبت)")
 
 if __name__ == "__main__":
     main()
