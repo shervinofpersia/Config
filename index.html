@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SHΞN™ V2Ray Sub Builder — Single File</title>
+
+  <!-- React & Babel from CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+  <style>
+    /* ===== RESET & BASE ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #050607 radial-gradient(circle at 50% 0%, #1a2a44 0%, #050607 60%) no-repeat;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      color: #e7e7ea;
+      padding: 20px;
+    }
+    #root {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ===== UTILITY ===== */
+    .flex-center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 70vh;
+      flex-direction: column;
+      gap: 30px;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .fade-in {
+      animation: fadeIn 0.6s ease forwards;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* ===== PAGE CONTAINERS ===== */
+    .page {
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .page-exit {
+      opacity: 0;
+      transform: translateY(-30px);
+      pointer-events: none;
+    }
+
+    /* ===== FILTER GRID (4 options) ===== */
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .filter-item {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 16px 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+      color: #a7a7b2;
+    }
+    .filter-item.active {
+      background: rgba(96, 165, 250, 0.15);
+      border-color: #60a5fa;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(96, 165, 250, 0.2);
+    }
+    .filter-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ===== LOADER SCRAPPER (center) ===== */
+    .scrapper-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .scrapper-container .pl {
+      transform: rotateX(30deg) rotateZ(45deg);
+    }
+
+    /* ===== FINGERPRINT BUTTON ===== */
+    .fingerprint-container {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      cursor: pointer;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    .fingerprint-svg {
+      width: 100%;
+      height: 100%;
+      color: #f5f5f5;
+      transition: transform 0.3s ease, color 0.3s ease;
+    }
+    .fingerprint-path {
+      fill: rgba(236, 236, 236, 0.527);
+      stroke-width: 0.5px;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 0;
+    }
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(to right, transparent, #00ccff, transparent);
+      opacity: 0;
+    }
+    .ripple1, .ripple2 {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      border: 2px solid #00ff00;
+      opacity: 0;
+      transform: scale(0);
+    }
+    .glow {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      box-shadow: 0 0 20px #9aa5a8;
+      opacity: 0;
+    }
+    .status {
+      position: absolute;
+      bottom: -30px;
+      width: 100%;
+      text-align: center;
+      color: #a1a1a1;
+      font-size: 14px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease, color 0.3s ease;
+    }
+    .fingerprint-container:hover .fingerprint-svg {
+      transform: scale(1.1);
+    }
+    .fingerprint-container:hover .fingerprint-path {
+      stroke: #f8f8f8;
+      animation: draw 4s infinite linear;
+    }
+    .fingerprint-container:hover .scan-line {
+      animation: scan 1.5s infinite linear;
+      opacity: 0.7;
+    }
+    .fingerprint-container:active .fingerprint-svg {
+      color: #00ff00;
+      transform: scale(1.05) rotate(15deg);
+      animation: spin 0.5s ease-out;
+    }
+    .fingerprint-container:active .fingerprint-path {
+      fill: #00ff00;
+      stroke: #39ff39;
+      animation: draw-fast 0.5s linear;
+    }
+    .fingerprint-container:active .ripple1 {
+      animation: ripple-effect 0.6s ease-out;
+    }
+    .fingerprint-container:active .ripple2 {
+      animation: ripple-effect 0.8s ease-out 0.2s;
+    }
+    .fingerprint-container:active .glow {
+      box-shadow: 0 0 30px #00ff00;
+      animation: glow-effect 0.6s ease-out;
+    }
+    .fingerprint-container:active .status {
+      opacity: 1;
+      color: #00ff00;
+    }
+
+    /* ===== KEYFRAMES ===== */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    @keyframes scan {
+      0% { transform: translateY(0); opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { transform: translateY(150px); opacity: 0.7; }
+    }
+    @keyframes ripple-effect {
+      0% { transform: scale(0); opacity: 0.5; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes glow-effect {
+      0% { opacity: 0; }
+      50% { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+    @keyframes spin {
+      0% { transform: scale(1.05) rotate(0deg); }
+      50% { transform: scale(1.1) rotate(15deg); }
+      100% { transform: scale(1.05) rotate(0deg); }
+    }
+    @keyframes draw {
+      0% { stroke-dashoffset: 200; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes draw-fast {
+      0% { stroke-dashoffset: 200; }
+      100% { stroke-dashoffset: 0; }
+    }
+
+    /* ===== GEARBOX (Loader 4) ===== */
+    .gearbox {
+      background: #111;
+      height: 150px;
+      width: 200px;
+      position: relative;
+      border: none;
+      overflow: hidden;
+      border-radius: 6px;
+      box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
+    }
+    .gearbox .overlay {
+      border-radius: 6px;
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      box-shadow: inset 0px 0px 20px black;
+      background: transparent;
+    }
+    .gear {
+      position: absolute;
+      height: 60px;
+      width: 60px;
+      box-shadow: 0px -1px 0px 0px #888888, 0px 1px 0px 0px black;
+      border-radius: 30px;
+    }
+    .gear.large {
+      height: 120px;
+      width: 120px;
+      border-radius: 60px;
+    }
+    .gear.large:after {
+      height: 96px;
+      width: 96px;
+      border-radius: 48px;
+      margin-left: -48px;
+      margin-top: -48px;
+    }
+    .gear.one { top: 12px; left: 10px; }
+    .gear.two { top: 61px; left: 60px; }
+    .gear.three { top: 110px; left: 10px; }
+    .gear.four { top: 13px; left: 128px; }
+    .gear:after {
+      content: "";
+      position: absolute;
+      height: 36px;
+      width: 36px;
+      border-radius: 36px;
+      background: #111;
+      top: 50%;
+      left: 50%;
+      margin-left: -18px;
+      margin-top: -18px;
+      z-index: 3;
+      box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1), inset 0px 0px 10px rgba(0, 0, 0, 0.1), inset 0px 2px 0px 0px #090909, inset 0px -1px 0px 0px #888888;
+    }
+    .gear-inner {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      background: #555;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .large .gear-inner { border-radius: 60px; }
+    .gear.one .gear-inner { animation: counter-clockwise 3s infinite linear; }
+    .gear.two .gear-inner { animation: clockwise 3s infinite linear; }
+    .gear.three .gear-inner { animation: counter-clockwise 3s infinite linear; }
+    .gear.four .gear-inner { animation: counter-clockwise 6s infinite linear; }
+    .gear-inner .bar {
+      background: #555;
+      height: 16px;
+      width: 76px;
+      position: absolute;
+      left: 50%;
+      margin-left: -38px;
+      top: 50%;
+      margin-top: -8px;
+      border-radius: 2px;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .large .gear-inner .bar {
+      margin-left: -68px;
+      width: 136px;
+    }
+    .gear-inner .bar:nth-child(2) { transform: rotate(60deg); }
+    .gear-inner .bar:nth-child(3) { transform: rotate(120deg); }
+    .gear-inner .bar:nth-child(4) { transform: rotate(90deg); }
+    .gear-inner .bar:nth-child(5) { transform: rotate(30deg); }
+    .gear-inner .bar:nth-child(6) { transform: rotate(150deg); }
+    @keyframes clockwise {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes counter-clockwise {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(-360deg); }
+    }
+
+    /* ===== CIRCUIT LOADER ===== */
+    .circuit-loader svg .trace-bg {
+      stroke: #333;
+      stroke-width: 1.8;
+      fill: none;
+    }
+    .circuit-loader svg .trace-flow {
+      stroke-width: 1.8;
+      fill: none;
+      stroke-dasharray: 40 400;
+      stroke-dashoffset: 438;
+      filter: drop-shadow(0 0 6px currentColor);
+      animation: flow 3s cubic-bezier(0.5, 0, 0.9, 1) infinite;
+    }
+    .circuit-loader svg .yellow { stroke: #ffea00; color: #ffea00; }
+    .circuit-loader svg .blue { stroke: #00ccff; color: #00ccff; }
+    .circuit-loader svg .green { stroke: #00ff15; color: #00ff15; }
+    .circuit-loader svg .purple { stroke: #9900ff; color: #9900ff; }
+    .circuit-loader svg .red { stroke: #ff3300; color: #ff3300; }
+    @keyframes flow {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* ===== SHEN 12 DOTS LOADER ===== */
+    .pl {
+      box-shadow: 2em 0 2em rgba(0, 0, 0, 0.2) inset, -2em 0 2em rgba(255, 255, 255, 0.1) inset;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transform: rotateX(30deg) rotateZ(45deg);
+      width: 14em;
+      height: 14em;
+      color: white;
+    }
+    .pl, .pl__dot { border-radius: 50%; }
+    .pl__dot {
+      animation-name: shadow724;
+      box-shadow: 0.1em 0.1em 0 0.1em black, 0.3em 0 0.3em rgba(0, 0, 0, 0.5);
+      top: calc(50% - 0.75em);
+      left: calc(50% - 0.75em);
+      width: 1.5em;
+      height: 1.5em;
+    }
+    .pl__dot, .pl__dot:before, .pl__dot:after {
+      animation-duration: 2s;
+      animation-iteration-count: infinite;
+      position: absolute;
+    }
+    .pl__dot:before, .pl__dot:after {
+      content: "";
+      display: block;
+      left: 0;
+      width: inherit;
+    }
+    .pl__dot:before {
+      animation-name: pushInOut1724;
+      background-color: #111;
+      border-radius: inherit;
+      box-shadow: 0.05em 0 0.1em rgba(255, 255, 255, 0.2) inset;
+      height: inherit;
+      z-index: 1;
+    }
+    .pl__dot:after {
+      animation-name: pushInOut2724;
+      background-color: #60a5fa;
+      border-radius: 0.75em;
+      box-shadow: 0.1em 0.3em 0.2em rgba(255, 255, 255, 0.4) inset, 0 -0.4em 0.2em #2e3138 inset, 0 -1em 0.25em rgba(0, 0, 0, 0.3) inset;
+      bottom: 0;
+      clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%);
+      height: 3em;
+      transform: rotate(-45deg);
+      transform-origin: 50% 2.25em;
+    }
+    .pl__dot:nth-child(1) { transform: rotate(0deg) translateX(5em) rotate(0deg); z-index: 5; }
+    .pl__dot:nth-child(1), .pl__dot:nth-child(1):before, .pl__dot:nth-child(1):after { animation-delay: 0s; }
+    .pl__dot:nth-child(2) { transform: rotate(-30deg) translateX(5em) rotate(30deg); z-index: 4; }
+    .pl__dot:nth-child(2), .pl__dot:nth-child(2):before, .pl__dot:nth-child(2):after { animation-delay: -0.1666666667s; }
+    .pl__dot:nth-child(3) { transform: rotate(-60deg) translateX(5em) rotate(60deg); z-index: 3; }
+    .pl__dot:nth-child(3), .pl__dot:nth-child(3):before, .pl__dot:nth-child(3):after { animation-delay: -0.3333333333s; }
+    .pl__dot:nth-child(4) { transform: rotate(-90deg) translateX(5em) rotate(90deg); z-index: 2; }
+    .pl__dot:nth-child(4), .pl__dot:nth-child(4):before, .pl__dot:nth-child(4):after { animation-delay: -0.5s; }
+    .pl__dot:nth-child(5) { transform: rotate(-120deg) translateX(5em) rotate(120deg); z-index: 1; }
+    .pl__dot:nth-child(5), .pl__dot:nth-child(5):before, .pl__dot:nth-child(5):after { animation-delay: -0.6666666667s; }
+    .pl__dot:nth-child(6) { transform: rotate(-150deg) translateX(5em) rotate(150deg); z-index: 1; }
+    .pl__dot:nth-child(6), .pl__dot:nth-child(6):before, .pl__dot:nth-child(6):after { animation-delay: -0.8333333333s; }
+    .pl__dot:nth-child(7) { transform: rotate(-180deg) translateX(5em) rotate(180deg); z-index: 2; }
+    .pl__dot:nth-child(7), .pl__dot:nth-child(7):before, .pl__dot:nth-child(7):after { animation-delay: -1s; }
+    .pl__dot:nth-child(8) { transform: rotate(-210deg) translateX(5em) rotate(210deg); z-index: 3; }
+    .pl__dot:nth-child(8), .pl__dot:nth-child(8):before, .pl__dot:nth-child(8):after { animation-delay: -1.1666666667s; }
+    .pl__dot:nth-child(9) { transform: rotate(-240deg) translateX(5em) rotate(240deg); z-index: 4; }
+    .pl__dot:nth-child(9), .pl__dot:nth-child(9):before, .pl__dot:nth-child(9):after { animation-delay: -1.3333333333s; }
+    .pl__dot:nth-child(10) { transform: rotate(-270deg) translateX(5em) rotate(270deg); z-index: 5; }
+    .pl__dot:nth-child(10), .pl__dot:nth-child(10):before, .pl__dot:nth-child(10):after { animation-delay: -1.5s; }
+    .pl__dot:nth-child(11) { transform: rotate(-300deg) translateX(5em) rotate(300deg); z-index: 6; }
+    .pl__dot:nth-child(11), .pl__dot:nth-child(11):before, .pl__dot:nth-child(11):after { animation-delay: -1.6666666667s; }
+    .pl__dot:nth-child(12) { transform: rotate(-330deg) translateX(5em) rotate(330deg); z-index: 6; }
+    .pl__dot:nth-child(12), .pl__dot:nth-child(12):before, .pl__dot:nth-child(12):after { animation-delay: -1.8333333333s; }
+    .pl__text {
+      font-size: 0.75em;
+      max-width: 5rem;
+      position: relative;
+      text-shadow: 0 0 0.1em #fff;
+      transform: rotateZ(-45deg);
+    }
+    @keyframes shadow724 {
+      from { animation-timing-function: ease-in; box-shadow: 0.1em 0.1em 0 0.1em black, 0.3em 0 0.3em rgba(0,0,0,0.3); }
+      25% { animation-timing-function: ease-out; box-shadow: 0.1em 0.1em 0 0.1em black, 0.8em 0 0.8em rgba(0,0,0,0.5); }
+      50%, to { box-shadow: 0.1em 0.1em 0 0.1em black, 0.3em 0 0.3em rgba(0,0,0,0.3); }
+    }
+    @keyframes pushInOut1724 {
+      from { animation-timing-function: ease-in; background-color: #111; transform: translate(0,0); }
+      25% { animation-timing-function: ease-out; background-color: #60a5fa; transform: translate(-71%,-71%); }
+      50%, to { background-color: #111; transform: translate(0,0); }
+    }
+    @keyframes pushInOut2724 {
+      from { animation-timing-function: ease-in; background-color: #111; clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); }
+      25% { animation-timing-function: ease-out; background-color: #60a5fa; clip-path: polygon(0 25%, 100% 25%, 100% 100%, 0 100%); }
+      50%, to { background-color: #111; clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); }
+    }
+
+    /* ===== VLEES BUTTON ===== */
+    .vlees-btn {
+      position: relative;
+      border: none;
+      background: transparent;
+      --stroke-color: #ffffff7c;
+      --ani-color: rgba(95, 3, 244, 0);
+      --color-gar: linear-gradient(90deg,#03a9f4,#f441a5,#ffeb3b,#03a9f4);
+      letter-spacing: 3px;
+      font-size: 2em;
+      font-family: "Arial";
+      text-transform: uppercase;
+      color: transparent;
+      -webkit-text-stroke: 1px var(--stroke-color);
+      cursor: pointer;
+    }
+    .vlees-btn .front-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0%;
+      background: var(--color-gar);
+      -webkit-background-clip: text;
+      background-clip: text;
+      background-size: 200%;
+      overflow: hidden;
+      transition: all 1s;
+      animation: 8s ani infinite;
+      border-bottom: 2px solid transparent;
+    }
+    .vlees-btn:hover .front-text {
+      width: 100%;
+      border-bottom: 2px solid #03a9f4;
+      -webkit-text-stroke: 1px var(--ani-color);
+    }
+    @keyframes ani {
+      0% { background-position: 0%; }
+      50% { background-position: 400%; }
+      100% { background-position: 0%; }
+    }
+
+    /* ===== GET STARTED BUTTON ===== */
+    .get-started-wrapper .area {
+      --ease: cubic-bezier(0.5, 0, 0.3, 1);
+      --ease-elastic: cubic-bezier(0.5, 2, 0.3, 0.8);
+      --radius: 26px;
+      --primary: #45f8f8;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.6s var(--ease-elastic);
+    }
+    .get-started-wrapper .area input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .get-started-wrapper .button {
+      outline: none;
+      cursor: pointer;
+      border: 0;
+      border-radius: var(--radius);
+      position: relative;
+      width: 240px;
+      height: 74px;
+      pointer-events: none;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      transition: background-color 2s linear, box-shadow 0.5s ease, transform 0.6s ease;
+      transform: rotateX(4deg);
+      background: var(--primary);
+      box-shadow: inset 0 0 30px rgb(34, 124, 136), 0 5px 10px -2px rgba(0,10,20,0.5), 0 40px 30px -15px rgba(10,20,30,0.3), inset 0 -2px 0 -1px #484e60, inset 0 0 2px 4px #888ea3;
+      font-size: 21px;
+      font-family: Arial;
+      letter-spacing: 1px;
+    }
+    .get-started-wrapper .button::before,
+    .get-started-wrapper .button::after {
+      content: "";
+      border-radius: 50%;
+      width: 100px;
+      height: 100px;
+      background: white;
+      position: absolute;
+      display: block;
+      filter: blur(40px);
+      mix-blend-mode: plus-lighter;
+      margin: auto;
+      inset: 0;
+      top: 10px;
+      transition: all 1s ease;
+    }
+    .get-started-wrapper .button:after {
+      transform: scale(0);
+      animation: pulse-out 3s var(--ease-elastic) infinite;
+    }
+    @keyframes pulse-out {
+      40% { transform: scale(1); }
+    }
+    .get-started-wrapper .button:before,
+    .get-started-wrapper .area input:not(:checked) ~ .button::after {
+      opacity: 0;
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button::before {
+      opacity: 1;
+    }
+    .get-started-wrapper .wrap {
+      border-radius: calc(var(--radius) * 0.85);
+      inset: 0;
+      padding: 0;
+      background: linear-gradient(to bottom, #6e96b6 0%, #00ffd2 50%, #00ffb7 100%);
+      position: absolute;
+      transform-origin: top;
+      transform: scale(0.99, 1) translate(0px, -7px);
+      transition: all 0.7s ease;
+      animation: cover-close 0.9s ease forwards;
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button .wrap {
+      animation: cover-open 0.9s ease forwards;
+    }
+    @keyframes cover-open {
+      0% { transform: translate3d(0, -7px, 10px); box-shadow: none; }
+      20% { transform: translate3d(0, 0, 10px); }
+      80% { transform: translate3d(0, 0, 10px) rotateY(0) rotateX(74deg); }
+      100% { transform: translate3d(0, 0, 10px) rotateY(0) rotateX(70deg); box-shadow: rgb(121,133,147) 0px 5px 1px -1px, rgb(77,97,118) 0px 9px 0 -2px, rgb(0,0,0) 0px 60px 40px -30px; }
+    }
+    @keyframes cover-close {
+      from { transform: translate3d(0px,0px,10px) rotateY(0) rotateX(70deg); box-shadow: 0 5px 1px -1px #798593, 0 10px 0px -1px #4d6176, 0 60px 40px -30px black; }
+      to { transform: scale(0.99,1) translate3d(0px,-7px,10px); box-shadow: none; }
+    }
+    .get-started-wrapper .reflex {
+      position: absolute;
+      z-index: 9;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+    }
+    .get-started-wrapper .reflex:before {
+      content: "";
+      position: absolute;
+      width: 300px;
+      background: linear-gradient(to right, rgba(221,249,255,0.2) 10%, rgba(221,245,255,0.5) 60%, rgba(221,246,255,0.4) 60%, rgba(221,255,254,0.2) 90%);
+      top: -40%;
+      bottom: -40%;
+      left: -132%;
+      transform: translateX(0) skew(-30deg);
+      transition: all 0.7s var(--ease);
+    }
+    .get-started-wrapper .area:hover .reflex:before {
+      transform: translate(192%, 0) skew(-30deg);
+    }
+    .get-started-wrapper .path {
+      position: absolute;
+      left: 50%;
+      top: 87%;
+      transform: translateX(-50%);
+      stroke-dasharray: 60 150;
+      stroke-dashoffset: 60;
+      pointer-events: none;
+      overflow: visible;
+      animation: path-in 0.6s linear forwards;
+      stroke-width: 2px;
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button .path {
+      animation: path-out 1.2s ease forwards;
+    }
+    @keyframes path-out {
+      from { transform: translateX(-50%) translateY(-15px); stroke: white; }
+      to { stroke-dashoffset: -150; stroke: var(--primary); transform: translateX(-50%) translateY(15px); }
+    }
+    @keyframes path-in {
+      from { stroke-dashoffset: -150; transform: translateX(-50%) translateY(-5px); stroke: white; }
+      to { stroke: var(--primary); transform: translateX(-50%) translateY(-16px); }
+    }
+    .get-started-wrapper .wave {
+      position: absolute;
+      margin: auto;
+      transition: all 0.5s ease;
+      border-radius: 70px;
+      width: 110%;
+      height: 150%;
+      left: 50%;
+      top: 56%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+    }
+    .get-started-wrapper .wave::before,
+    .get-started-wrapper .wave::after {
+      content: "";
+      position: absolute;
+      border-radius: inherit;
+      border-bottom: 3px solid white;
+      border-top: 3px solid white;
+      filter: blur(3px);
+      inset: 0;
+      transform: translate(50%);
+      animation: wave 1.5s linear infinite;
+    }
+    .get-started-wrapper .wave::after {
+      animation-delay: 0.4s;
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button .wave {
+      opacity: 1;
+    }
+    @keyframes wave {
+      0% { transform: scale(1); opacity: 0; box-shadow: 0 0 30px white; }
+      35% { transform: scale(1.3); opacity: 1; }
+      70%, 100% { transform: scale(1.6); opacity: 0; box-shadow: 0 0 100px var(--primary); }
+    }
+    .get-started-wrapper .content {
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      position: relative;
+      height: 100%;
+      gap: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      border-radius: calc(var(--radius) * 0.85);
+    }
+    .get-started-wrapper .content::before,
+    .get-started-wrapper .content::after {
+      content: "";
+      inset: 0px;
+      position: absolute;
+      transition: all 1s var(--ease);
+      border-radius: inherit;
+      z-index: -1;
+    }
+    .get-started-wrapper .content::before {
+      filter: blur(2px);
+      top: -2px;
+      background: linear-gradient(to bottom, #dde0e1 30%, #aeb2b8 90%);
+    }
+    .get-started-wrapper .content::after {
+      box-shadow: inset 0 -7px 1px 0 rgba(40,70,100,0.2), inset 0 -4px 1px 0 rgba(40,70,100,0.4), inset 0 -2px 0 0 rgba(20,40,60,0.6), inset 0 -3px 0 0 white;
+    }
+    .get-started-wrapper .text {
+      transition: all 0.3s ease;
+      transform: translateY(-2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      inset: 0;
+    }
+    .get-started-wrapper .text span {
+      display: block;
+      color: transparent;
+      position: relative;
+    }
+    .get-started-wrapper .text.state-1 span:nth-child(3) {
+      margin-right: 10px;
+    }
+    .get-started-wrapper .text span::before,
+    .get-started-wrapper .text span::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 0;
+      color: #3c5d7d;
+      text-shadow: 0 1px 1px rgba(255,255,255,0.7);
+    }
+    .get-started-wrapper .text span::before {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    .get-started-wrapper .text.state-2 span::before,
+    .get-started-wrapper .text.state-2 span::after {
+      color: #6b99b0;
+    }
+    .get-started-wrapper .area input:checked ~ .button .text.state-2 span {
+      filter: blur(5px);
+    }
+    .get-started-wrapper .area:hover .text span::before {
+      animation: char-in 0.8s ease calc(var(--i) * 0.04s) forwards;
+    }
+    .get-started-wrapper .area:hover .text span::after,
+    .get-started-wrapper .area input:not(:checked) ~ .button .text.state-1 span::before,
+    .get-started-wrapper .area input:not(:checked) ~ .button .text.state-1 span::after,
+    .get-started-wrapper .area input:checked ~ .button .text.state-2 span::before,
+    .get-started-wrapper .area input:checked ~ .button .text.state-2 span::after {
+      opacity: 0;
+      animation: char-out 1.2s ease calc(var(--i) * 0.04s) backwards;
+    }
+    @keyframes char-in {
+      0% { opacity:0; transform:scale(10) translateX(-100%); filter:blur(10px); color:rgb(0,251,255); }
+      25% { transform:translateY(10%) translateX(calc(-40px + ((var(--i)-1)/10)*80px)) scale(2); opacity:1; filter:blur(1px); color:transparent; }
+      50% { transform:translateY(20%); opacity:1; filter:blur(0); }
+      100% { transform:translateY(0); opacity:1; filter:blur(0); }
+    }
+    @keyframes char-out {
+      0% { transform:translateY(0); opacity:1; }
+      40% { color:white; }
+      100% { transform:translateY(-80%) scale(4); filter:blur(4px); color:black; text-shadow:0 4px 2px #00ffd2; opacity:0; }
+    }
+    .get-started-wrapper .area:hover .button {
+      transition: all 0.6s var(--ease-elastic), background 1s ease;
+      transform: rotateX(0deg) translateY(5px);
+    }
+    .get-started-wrapper .area:hover .content::before {
+      transform: scale(0.97, 0.92);
+    }
+    .get-started-wrapper .area:active .button {
+      transform: rotateX(0deg) translateY(8px);
+    }
+    .get-started-wrapper .area:active .wrap {
+      transform: scale(1) translate(0);
+    }
+    .get-started-wrapper .area:active .wave {
+      opacity: 0;
+    }
+    .get-started-wrapper .area:active .content::before {
+      filter: blur(13px);
+      transform: scaleX(0.95);
+    }
+    .get-started-wrapper .sparks {
+      pointer-events: none;
+      position: absolute;
+      margin: auto;
+      transform: translateZ(100px);
+      stroke: rgba(255,153,0,1);
+      left: 54px;
+      top: 10px;
+      height: 58px;
+      opacity: 0;
+    }
+    .get-started-wrapper .sparks path {
+      stroke-width: 5px;
+      stroke-dasharray: 30 150;
+      stroke-dashoffset: 30;
+      animation: sparks 0.6s ease infinite;
+      animation-delay: calc(var(--i) * 1s);
+      animation-duration: calc(var(--i) * 0.05s + 0.6s);
+    }
+    @keyframes sparks {
+      0% { stroke-dasharray: 30 150; }
+      50%, 100% { stroke-dashoffset: -150; }
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button .gears,
+    .get-started-wrapper .area input:not(:checked) ~ .button .sparks {
+      opacity: 1;
+    }
+    .get-started-wrapper .area input:not(:checked) ~ .button .sparks {
+      transition: all 1.5s ease;
+    }
+    .get-started-wrapper .gears {
+      overflow: hidden;
+      border-radius: inherit;
+      opacity: 0;
+      position: absolute;
+      inset: 4px;
+      bottom: 1px;
+      transition: all 1s ease;
+    }
+    .get-started-wrapper .gears svg {
+      width: 80%;
+      fill: #49b9c2;
+      top: 50%;
+      position: relative;
+      transform: translate(-50%, -50%);
+      left: 43%;
+    }
+    .get-started-wrapper .gears svg path {
+      transform-origin: center;
+      transform-box: fill-box;
+    }
+    .get-started-wrapper .gears svg .shadow {
+      fill: rgba(36,113,125,0.2);
+      translate: 2px 8px;
+    }
+    .get-started-wrapper .gears svg .small {
+      animation: spin 2.5s infinite linear;
+    }
+    .get-started-wrapper .gears svg .medium {
+      animation: spin reverse 3.75s infinite linear;
+    }
+    .get-started-wrapper .gears svg .large {
+      translate: 3px -6px;
+      animation: spin 5s infinite linear;
+    }
+    .get-started-wrapper .gears::before,
+    .get-started-wrapper .gears::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      bottom: 11px;
+      height: 7px;
+      width: 7px;
+      background: rgba(155,155,155,0.3);
+      box-shadow: inset 0px 2px rgba(0,0,0,0.2);
+    }
+    .get-started-wrapper .gears::before { left: 12px; }
+    .get-started-wrapper .gears::after { right: 12px; }
+    @keyframes spin {
+      to { transform: rotate(359deg); }
+    }
+
+    /* ===== SHEN LAUNCH BUTTON ===== */
+    .shen-launch .tt-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-image: linear-gradient(0, #4a494e, #828186);
+      padding: 20px;
+      border-radius: 50%;
+    }
+    .shen-launch .launch-btn {
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+    .shen-launch .launch-btn .input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .spot-shadow {
+      transition: 1.7s opacity;
+      opacity: 0.9;
+      animation: spot-main 1.9s linear infinite;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .spot-main {
+      transition: 1.7s opacity;
+      opacity: 0.9;
+      animation: spot-main 1.9s linear infinite;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .spot-light {
+      transition: 1.7s opacity;
+      opacity: 0.9;
+      animation: spot-main 1.9s linear infinite;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .center .icon .svg {
+      filter: brightness(1.15);
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .center .launch {
+      color: #333333;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .center .launch > div {
+      animation: waveText 1.8s calc(var(--i) * -0.13s) infinite;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .center .start .text1 {
+      transition: 0.5s;
+      transform: translateX(10px);
+      opacity: 0;
+    }
+    .shen-launch .launch-btn .input:checked ~ .back .mid .btn .center .start .text2 {
+      opacity: 1;
+      animation: text2 0.5s forwards;
+    }
+    .shen-launch .launch-btn:active .back .mid .btn {
+      transform: scale(0.94);
+      box-shadow: 0 -1px 2px rgba(255,255,255,0.3), inset 0 0 10px rgba(0,0,0,0.24), inset 0 -13px 26px rgba(0,0,0,0.8);
+    }
+    .shen-launch .back {
+      z-index: 200;
+      width: 188px;
+      height: 188px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      background-image: linear-gradient(0, #5e5e61 20%, #212123);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.3), inset 0 3px 5px rgba(255,255,255,0.6), inset 0 -6px 2px rgba(255,255,255,0.05), inset 0 -3px 0 rgba(0,0,0,0.15), inset -2px 5px 0 rgba(0,0,0,0.3), inset 2px 5px 0 rgba(0,0,0,0.3), 0 -11px 22px 2px rgba(255,255,255,0.39), 0 6px 22px 2px rgba(0,0,0,0.5), 0 2px 6px #7c7c7c;
+      cursor: pointer;
+    }
+    .shen-launch .back .spot-shadow {
+      position: absolute;
+      width: 140px;
+      height: 40px;
+      background: rgba(71,164,239,0.8);
+      opacity: 0;
+      filter: blur(20px) brightness(1.1);
+    }
+    .shen-launch .back .mid {
+      overflow: hidden;
+      position: relative;
+      width: 155px;
+      height: 155px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      background: #000;
+      box-shadow: 0 0 5px #000, 0 1px 2px rgba(255,255,255,0.8);
+    }
+    .shen-launch .back .mid::before {
+      content: "";
+      position: absolute;
+      z-index: 500;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: transparent;
+      box-shadow: inset 0 -18px 27px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    .shen-launch .back .mid .spot-main {
+      position: absolute;
+      width: 160px;
+      height: 36px;
+      background: #589cf6;
+      opacity: 0;
+      filter: blur(15px) brightness(1.5);
+    }
+    .shen-launch .back .mid .btn {
+      z-index: 90;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 146px;
+      height: 146px;
+      border-radius: 50%;
+      background: #424242;
+      box-shadow: 0 -1px 2px rgba(255,255,255,0.5), inset 0 -13px 26px rgba(0,0,0,0.8);
+      transition: 0.2s ease;
+    }
+    .shen-launch .back .mid .btn .spot-light {
+      position: absolute;
+      width: 160px;
+      height: 40px;
+      opacity: 0;
+      background: rgba(104,151,255,0.4);
+      filter: blur(20px) brightness(1.1);
+    }
+    .shen-launch .back .mid .btn .center {
+      z-index: 100;
+      width: 125px;
+      height: 125px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      border-radius: 50%;
+      background: #232323;
+      cursor: pointer;
+    }
+    .shen-launch .back .mid .btn .center .icon svg {
+      margin-top: -4px;
+      width: 26px;
+      filter: brightness(1) grayscale(1);
+      transition: 1.5s filter;
+    }
+    .shen-launch .back .mid .btn .center .launch {
+      display: flex;
+      margin-top: -4px;
+      font-size: 19px;
+      color: #595959;
+    }
+    .shen-launch .back .mid .btn .center .start {
+      font-size: 12px;
+      color: #737373;
+      text-align: center;
+      transition: 0.2s;
+    }
+    .shen-launch .back .mid .btn .center .start > div {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .shen-launch .back .mid .btn .center .start .text1 {
+      transition: 0.2s;
+    }
+    .shen-launch .back .mid .btn .center .start .text2 {
+      opacity: 0;
+      top: 65%;
+    }
+    .shen-launch .back .mid .btn .center .start .text2 > span {
+      animation: waveText 1.8s calc(var(--n) * -0.13s) infinite;
+    }
+    @keyframes waveText {
+      0% { opacity: 0.7; }
+      50% { color: #c6c6c6; opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    @keyframes spot-main {
+      0% { transform: rotate(0); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes text2 {
+      0% { transform: translateX(-80%); }
+      100% { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ================================================================
+    // 1. IMPORT REACT HOOKS
+    // ================================================================
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ================================================================
+    // 2. HELPER FUNCTIONS (SPLITTER LOGIC - from provided HTML)
+    // ================================================================
+    const PROTOCOLS = ["vless","vmess","hysteria2","hy2","trojan","ss","hysteria"];
+    const NETS = ["ws","grpc","tcp","h2","http","xhttp","splithttp","quic","kcp","httpupgrade"];
+    const VLESS_KEY_PARAMS = ["type","security","sni","host","path","serviceName","mode","fp","alpn","pbk","sid","spx","flow"];
+    const TRANSPORT_BONUS = new Map([
+      ["ws",10],["grpc",9],["tcp",6],["h2",6],["http",5],["xhttp",8],["splithttp",8],["httpupgrade",7],["quic",4],["kcp",3]
+    ]);
+    const SECURITY_BONUS = new Map([
+      ["reality",12],["tls",8],["xtls",8],["none",0],["",0]
+    ]);
+    const GOOD_PORTS = new Set([443,80,8080,8443,2053,2083,2087,2096,8880]);
+
+    function getProxies(){
+      const raw = "https://corsproxy.io/?, https://api.allorigins.win/raw?url=";
+      return raw.split(",").map(x=>x.trim()).filter(Boolean);
+    }
+
+    async function fetchWithFallback(url){
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(()=>controller.abort(), 4000);
+        const res = await fetch(url, {signal: controller.signal, cache:"no-store"});
+        clearTimeout(t);
+        if(res.ok) return await res.text();
+      } catch(_) {}
+      
+      const proxies = getProxies();
+      for(const p of proxies){
+        try {
+          const target = p + encodeURIComponent(url);
+          const controller = new AbortController();
+          const t = setTimeout(()=>controller.abort(), 7000);
+          const res = await fetch(target, {signal: controller.signal, cache:"no-store"});
+          clearTimeout(t);
+          if(res.ok) return await res.text();
+        } catch(_) {}
+      }
+      throw new Error("Fetch failed for " + url);
+    }
+
+    function looksBase64Whole(text){
+      const s = (text||"").trim().replace(/\s+/g,"");
+      if(s.length < 80) return false;
+      return /^[A-Za-z0-9+/=_-]+$/.test(s);
+    }
+
+    function safeAtobUnicode(b64){
+      const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+      const bin = atob(padded.replace(/-/g,"+").replace(/_/g,"/"));
+      try {
+        return decodeURIComponent(Array.prototype.map.call(bin, c => "%" + ("00"+c.charCodeAt(0).toString(16)).slice(-2)).join(""));
+      } catch(_) { return bin; }
+    }
+
+    function extractConfigs(text){
+      let full = text || "";
+      if(looksBase64Whole(full)){
+        try{
+          const decoded = safeAtobUnicode(full.trim().replace(/\s+/g,""));
+          if(decoded.includes("://")){ full += "\n" + decoded; }
+        }catch(_){}
+      }
+      const lines = full.split(/\r?\n/);
+      for(const line of lines){
+        const s = (line||"").trim();
+        if(!s) continue;
+        if(/^[A-Za-z0-9+/=_-]+$/.test(s) && s.length > 40){
+          try{
+            const decoded = safeAtobUnicode(s);
+            if(decoded.includes("://")) full += "\n" + decoded;
+          }catch(_){}
+        }
+      }
+      const re = /(vmess|vless|hysteria2|hy2|trojan|ss|hysteria):\/\/[^\s"'<>]+/gim;
+      const m = full.match(re) || [];
+      return Array.from(new Set(m.map(x=>x.trim())));
+    }
+
+    function normalizeConfig(cfg, remark){
+      const low = cfg.toLowerCase();
+      if(low.startsWith("vmess://")) return remarkVmess(cfg, remark);
+      if(low.startsWith("vless://") || low.startsWith("hysteria2://") || low.startsWith("hy2://") || low.startsWith("trojan://") || low.startsWith("ss://") || low.startsWith("hysteria://")){
+        return remarkUrlFragment(cfg, remark);
+      }
+      return null;
+    }
+
+    function remarkUrlFragment(cfg, remark){
+      try {
+        const i = cfg.indexOf("#");
+        const base = (i>=0) ? cfg.slice(0,i) : cfg;
+        return base + "#" + encodeURIComponent(remark);
+      } catch(_) { return cfg; }
+    }
+
+    function remarkVmess(cfg, remark){
+      try {
+        const payload = cfg.slice("vmess://".length);
+        const jsonStr = safeAtobUnicode(payload.trim());
+        const obj = JSON.parse(jsonStr);
+        obj.ps = remark;
+        const out = btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+          .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+        return "vmess://" + out;
+      } catch(_) { return null; }
+    }
+
+    function portBonus(port){
+      if(!port || port <= 0) return -50;
+      return GOOD_PORTS.has(port) ? 5 : 0;
+    }
+
+    function qdict(qs){
+      const p = new URLSearchParams(qs||"");
+      const out = {};
+      for(const [k,v] of p.entries()){ if(!(k in out)) out[k]=v; }
+      return out;
+    }
+
+    function vmessKeyScore(cfg){
+      try {
+        const payload = cfg.slice("vmess://".length);
+        const jsonStr = safeAtobUnicode(payload.trim());
+        const d = JSON.parse(jsonStr);
+        const add = String(d.add||"").trim().toLowerCase();
+        const port = parseInt(String(d.port||"0").trim(), 10) || 0;
+        const net  = String(d.net||"").trim().toLowerCase() || "tcp";
+        const tls  = String(d.tls||"").trim().toLowerCase();
+        const key = `vmess|${add}|${port}|${net}`;
+        let score = 20 + (TRANSPORT_BONUS.get(net) || 4) + (tls === "tls" ? 10 : 2) + portBonus(port);
+        return {key, score, cfg};
+      } catch(_) { return null; }
+    }
+
+    function vlessKeyScore(cfg){
+      try {
+        const scheme = cfg.split("://")[0].toLowerCase();
+        const fake = "http://" + cfg.slice((scheme + "://").length);
+        const u = new URL(fake);
+        const host = (u.hostname||"").trim().toLowerCase();
+        const port = parseInt(u.port || "0", 10) || 0;
+        const q = qdict(u.search);
+        const t = (q.type || "tcp").toLowerCase();
+        const security = (q.security || "").toLowerCase();
+        const key = `${scheme}|${host}|${port}|${t}`;
+        let score = 25 + (TRANSPORT_BONUS.get(t) || 4) + (SECURITY_BONUS.get(security) || 2) + portBonus(port);
+        return {key, score, cfg};
+      } catch(_) { return null; }
+    }
+
+    function genericKeyScore(cfg){
+      try {
+        const scheme = cfg.split("://")[0].toLowerCase();
+        const fake = "http://" + cfg.slice((scheme + "://").length);
+        const u = new URL(fake);
+        const host = (u.hostname||"").trim().toLowerCase();
+        const port = parseInt(u.port || "0", 10) || 0;
+        const q = qdict(u.search);
+        const t = ((q.type || q.mode || "") + "").toLowerCase() || "tcp";
+        const key = `${scheme}|${host}|${port}`;
+        let score = 15 + (TRANSPORT_BONUS.get(t) || 3) + portBonus(port);
+        return {key, score, cfg};
+      } catch(_) { return {key: "raw|" + cfg, score: 1, cfg}; }
+    }
+
+    function makeKeyScore(cfg){
+      const low = cfg.toLowerCase();
+      if(low.startsWith("vmess://")) return vmessKeyScore(cfg);
+      if(low.startsWith("vless://")) return vlessKeyScore(cfg);
+      return genericKeyScore(cfg);
+    }
+
+    function parseMetaQuick(cfg){
+      const low = cfg.toLowerCase();
+      let type = low.split("://")[0], net = "tcp", port = null;
+      try {
+        if(low.startsWith("vmess://")){
+          const d = JSON.parse(safeAtobUnicode(cfg.slice("vmess://".length).trim()));
+          net = String(d.net || "tcp").toLowerCase();
+          port = parseInt(String(d.port || "0"), 10) || null;
+        } else {
+          const fake = "http://" + cfg.slice((type + "://").length);
+          const u = new URL(fake);
+          port = parseInt(u.port || "0", 10) || null;
+          const q = qdict(u.search);
+          net = String(q.type || q.mode || (q.serviceName ? "grpc" : "tcp")).toLowerCase();
+        }
+        return {valid:true, type, net, port};
+      } catch(_) { return {valid:false, type, net, port}; }
+    }
+
+    function getDefaultSources(){
+      return `https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt
+    https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt
+    https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS_mobile.txt
+    https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt
+    https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS.txt
+    https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_SS+All_RUS.txt
+    https://raw.githubusercontent.com/Mosifree/-FREE2CONFIG/refs/heads/main/FRAGMENT
+    https://raw.githubusercontent.com/ShadowException/VPN/refs/heads/main/configs/VPN-cat
+    https://raw.githubusercontent.com/F0rc3Run/F0rc3Run/main/splitted-by-protocol/vless.txt
+    https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt
+    https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub2.txt
+    https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub3.txt
+    https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/V2Ray-Config-By-EbraSha.txt
+    https://raw.githubusercontent.com/MohammadBahemmat/V2ray-Collector/main/subscriptions/all.txt
+    https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/main/sub.txt
+    https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub
+    https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray.txt
+    https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt
+    https://mifa.world/ss
+    https://raw.githubusercontent.com/Mosifree/-FREE2CONFIG/refs/heads/main/FRAGMENT
+    https://empty-mouse-fbb7.alizareh4024.workers.dev/sync?sub=%D8%B3%D9%88%D8%B3%D9%85%D8%A7%D8%B1%F0%9F%A6%8E
+    https://raw.githubusercontent.com/pytimusprime/FreeV2ray/refs/heads/main/all_servers.txt
+    https://raw.githubusercontent.com/ThomasJasperthecat/sub/main/sublist1.txt
+    https://raw.githubusercontent.com/masir-sefid/Sub/main/@Masir_Sefid.txt
+    https://sub.whitedns.one/sub/mihomo.yaml
+    http://main.pythash.tr/FRkh99yBGCllN/01736620-2086-4c0b-a86e-52ebfe64dd12/#pythash
+    https://raw.githubusercontent.com/masir-sefid/Sub/main/Telegram-Channel-@Masir_Sefid.txt
+    https://c6et83fe1u99lr8j5w4s9iwik9565bqx.pages.dev/sub/fragment/g4lWgI*%40zehfoOEK?app=xray#%F0%9F%92%A6%20BPB%20Fragment
+    https://raw.githubusercontent.com/AmyraxVPN-Main/AmyraxVPN/refs/heads/main/AmyraxVPN.txt
+    https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/mix/sub.html
+    https://raw.githubusercontent.com/MahsaNetConfigTopic/config/refs/heads/main/xray_final.txt
+    https://raw.githubusercontent.com/barry-far/V2ray-config/main/All_Configs_base64_Sub.txt
+    https://v2.alicivil.workers.dev`;
+    }
+
+    // ================================================================
+    // 3. REACT COMPONENTS (all pieces)
+    // ================================================================
+
+    // ---- Piece 7: SHEN Launch Button ----
+    function ShenLaunchButton({ onClick }) {
+      return (
+        <div className="shen-launch">
+          <div className="tt-container">
+            <label htmlFor="shenLaunch" className="launch-btn">
+              <input id="shenLaunch" className="input" type="checkbox" defaultChecked={false} />
+              <div className="back" onClick={onClick}>
+                <div className="spot-shadow" />
+                <div className="mid">
+                  <div className="spot-main" />
+                  <div className="btn">
+                    <div className="spot-light" />
+                    <div className="center">
+                      <div className="icon">
+                        <svg className="svg" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <g filter="url(#filter0_d_0_1)">
+                            <rect x={10} y={10} width={23} height={23} rx={2} stroke="#BBE7E9" strokeWidth={4} shapeRendering="crispEdges" />
+                          </g>
+                          <g filter="url(#filter1_d_0_1)">
+                            <rect x={17} y={17} width={9} height={9} rx={2} fill="#BBE7E9" />
+                          </g>
+                          <defs>
+                            <filter id="filter0_d_0_1" x={0} y={0} width={43} height={43} filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                              <feFlood floodOpacity={0} result="BackgroundImageFix" />
+                              <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+                              <feOffset />
+                              <feGaussianBlur stdDeviation={4} />
+                              <feComposite in2="hardAlpha" operator="out" />
+                              <feColorMatrix type="matrix" values="0 0 0 0 0.0837301 0 0 0 0 0.72793 0 0 0 0 0.757212 0 0 0 0.88 0" />
+                              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1" />
+                              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape" />
+                            </filter>
+                            <filter id="filter1_d_0_1" x={11} y={11} width={21} height={21} filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                              <feFlood floodOpacity={0} result="BackgroundImageFix" />
+                              <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+                              <feOffset />
+                              <feGaussianBlur stdDeviation={3} />
+                              <feComposite in2="hardAlpha" operator="out" />
+                              <feColorMatrix type="matrix" values="0 0 0 0 0.124867 0 0 0 0 0.794099 0 0 0 0 0.824519 0 0 0 1 0" />
+                              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1" />
+                              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape" />
+                            </filter>
+                          </defs>
+                        </svg>
+                      </div>
+                      <div className="launch">
+                        <div style={{ "--i": 1 }}>S</div>
+                        <div style={{ "--i": 2 }}>H</div>
+                        <div style={{ "--i": 3 }}>Ξ</div>
+                        <div style={{ "--i": 4 }}>N</div>
+                        <div style={{ "--i": 5 }}>™</div>
+                        <div style={{ "--i": 6 }} />
+                      </div>
+                      <div className="start">
+                        <div className="text1">START</div>
+                        <div className="text2">
+                          <span style={{ "--n": 1 }}>.</span>
+                          <span style={{ "--n": 1 }}>.</span>
+                          <span style={{ "--n": 1 }}>.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Piece 3: Circuit Loader ----
+    function CircuitLoader() {
+      return (
+        <div className="circuit-loader flex-center" style={{ minHeight: '50vh' }}>
+          <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" width="400" height="250">
+            <defs>
+              <linearGradient id="chipGradient" x1={0} y1={0} x2={0} y2={1}>
+                <stop offset="0%" stopColor="#2d2d2d" />
+                <stop offset="100%" stopColor="#0f0f0f" />
+              </linearGradient>
+              <linearGradient id="textGradient" x1={0} y1={0} x2={0} y2={1}>
+                <stop offset="0%" stopColor="#eeeeee" />
+                <stop offset="100%" stopColor="#888888" />
+              </linearGradient>
+              <linearGradient id="pinGradient" x1={1} y1={0} x2={0} y2={0}>
+                <stop offset="0%" stopColor="#bbbbbb" />
+                <stop offset="50%" stopColor="#888888" />
+                <stop offset="100%" stopColor="#555555" />
+              </linearGradient>
+            </defs>
+            <g id="traces">
+              <path d="M100 100 H200 V210 H326" className="trace-bg" />
+              <path d="M100 100 H200 V210 H326" className="trace-flow purple" />
+              <path d="M80 180 H180 V230 H326" className="trace-bg" />
+              <path d="M80 180 H180 V230 H326" className="trace-flow blue" />
+              <path d="M60 260 H150 V250 H326" className="trace-bg" />
+              <path d="M60 260 H150 V250 H326" className="trace-flow yellow" />
+              <path d="M100 350 H200 V270 H326" className="trace-bg" />
+              <path d="M100 350 H200 V270 H326" className="trace-flow green" />
+              <path d="M700 90 H560 V210 H474" className="trace-bg" />
+              <path d="M700 90 H560 V210 H474" className="trace-flow blue" />
+              <path d="M740 160 H580 V230 H474" className="trace-bg" />
+              <path d="M740 160 H580 V230 H474" className="trace-flow green" />
+              <path d="M720 250 H590 V250 H474" className="trace-bg" />
+              <path d="M720 250 H590 V250 H474" className="trace-flow red" />
+              <path d="M680 340 H570 V270 H474" className="trace-bg" />
+              <path d="M680 340 H570 V270 H474" className="trace-flow yellow" />
+            </g>
+            <rect x={330} y={190} width={140} height={100} rx={20} ry={20} fill="url(#chipGradient)" stroke="#222" strokeWidth={3} filter="drop-shadow(0 0 6px rgba(0,0,0,0.8))" />
+            <g>
+              <rect x={322} y={205} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={322} y={225} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={322} y={245} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={322} y={265} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+            </g>
+            <g>
+              <rect x={470} y={205} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={470} y={225} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={470} y={245} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+              <rect x={470} y={265} width={8} height={10} fill="url(#pinGradient)" rx={2} />
+            </g>
+            <text x={400} y={240} fontFamily="Arial, sans-serif" fontSize={22} fill="url(#textGradient)" textAnchor="middle" alignmentBaseline="middle">
+              Loading
+            </text>
+            <circle cx={100} cy={100} r={5} fill="black" />
+            <circle cx={80} cy={180} r={5} fill="black" />
+            <circle cx={60} cy={260} r={5} fill="black" />
+            <circle cx={100} cy={350} r={5} fill="black" />
+            <circle cx={700} cy={90} r={5} fill="black" />
+            <circle cx={740} cy={160} r={5} fill="black" />
+            <circle cx={720} cy={250} r={5} fill="black" />
+            <circle cx={680} cy={340} r={5} fill="black" />
+          </svg>
+        </div>
+      );
+    }
+
+    // ---- Piece 6: SHEN Scrapper Engine Loader (12 dots) ----
+    function ShenScrapperLoader() {
+      return (
+        <div className="scrapper-container flex-center" style={{ minHeight: '50vh' }}>
+          <div className="pl">
+            {[...Array(12)].map((_, i) => <div key={i} className="pl__dot" />)}
+            <div className="pl__text">☬SHΞN™ Scrappers engine ☢️</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Piece 2: GET STARTED Button ----
+    function GetStartedButton({ onClick, isActive }) {
+      return (
+        <div className="get-started-wrapper" onClick={onClick}>
+          <label htmlFor="getStarted" className="area">
+            <input type="checkbox" defaultChecked={isActive} id="getStarted" />
+            <button className="button">
+              <div className="wave" />
+              <div className="wrap">
+                <div className="reflex" />
+                <div className="content">
+                  <span className="text state-1">
+                    {['G','E','T','S','T','A','R','T','E','D'].map((ch, i) => (
+                      <span key={i} style={{ "--i": i+1 }} data-label={ch}>{ch}</span>
+                    ))}
+                  </span>
+                  <span className="text state-2">
+                    {[...Array(10)].map((_, i) => (
+                      <span key={i} style={{ "--i": i+1 }} data-label="⎯">⎯</span>
+                    ))}
+                  </span>
+                </div>
+              </div>
+              <div className="gears">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 635 523">
+                  <defs>
+                    <filter id="filter">
+                      <feGaussianBlur result="blur" stdDeviation={5} in="SourceGraphic" />
+                      <feColorMatrix result="goo" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" type="matrix" in="blur" />
+                      <feBlend in2="goo" in="SourceGraphic" />
+                    </filter>
+                  </defs>
+                  <g filter="url(#filter)">
+                    <path className="large shadow" d="M635 192V171L606 167C605 157 603 148 600 139L625 125L617 106L589 113C584 105 579 97 573 89L592 66L577 51L554 68C547 62 539 57 530 52L537 24L518 16L504 41C495 38 486 36 476 35L472 8H451L447 37C437 38 428 40 419 43L405 18L386 26L393 54C385 59 377 64 369 70L346 53L331 66L348 89C342 96 337 104 332 113L304 106L296 125L321 139C318 148 316 157 315 167L286 171V192L315 196C316 206 318 215 321 224L296 238L304 257L332 250C337 258 342 266 348 274L331 297L346 312L369 295C376 301 384 306 393 311L386 339L405 347L419 322C428 325 437 327 447 328L451 357H472L476 328C486 327 495 325 504 322L518 347L537 339L530 311C538 306 546 301 554 295L577 312L592 297L575 274C581 267 586 259 591 250L619 257L627 238L602 224C605 215 607 206 608 196L635 192ZM461 292C400 292 351 243 351 182C351 121 401 72 461 72C521 72 571 121 571 182C571 243 522 292 461 292Z" />
+                    <path className="medium shadow" d="M392 398V377L364 373C363 363 360 354 357 345L380 328L369 310L342 321C336 313 329 307 322 301L333 275L315 264L298 287C289 283 280 281 270 280L266 252H245L241 280C231 281 222 284 213 287L196 264L178 275L189 301C181 307 175 314 169 321L143 310L132 328L155 345C151 354 149 363 148 373L120 377V398L148 402C149 412 152 421 155 430L132 447L143 465L169 454C175 462 182 468 189 474L178 500L196 511L213 488C222 492 231 494 241 495L245 523H266L270 495C280 494 289 491 298 488L315 511L333 500L322 474C330 468 336 461 342 454L368 465L379 447L356 430C360 421 362 412 363 402L392 398ZM255 461C214 461 181 428 181 387C181 346 214 313 255 313C296 313 329 346 329 387C328 428 295 461 255 461Z" />
+                    <path className="small shadow" d="M200 244V223L171 219C169 209 165 201 160 193L178 170L163 155L140 173C132 168 123 164 114 162L110 133H90L86 162C76 164 68 168 60 173L37 155L22 170L40 193C35 201 31 210 29 219L0 223V244L29 248C31 258 35 266 40 274L22 297L37 312L60 294C68 299 77 303 86 305L90 334H111L115 305C125 303 133 299 141 294L164 312L179 297L161 274C166 266 170 257 172 248L200 244ZM100 270C80 270 63 253 63 233C63 213 80 196 100 196C120 196 137 213 137 233C137 253 121 270 100 270Z" />
+                    <path className="large" d="M635 184V163L606 159C605 149 603 140 600 131L625 117L617 98L589 105C584 97 579 89 573 81L592 58L577 43L554 60C547 54 539 49 530 44L537 16L518 8L504 33C495 30 486 28 476 27L472 0H451L447 29C437 30 428 32 419 35L405 9L386 17L393 45C385 50 377 55 369 61L346 44L331 58L348 81C342 88 337 96 332 105L304 98L296 117L321 131C318 140 316 149 315 159L286 163V184L315 188C316 198 318 207 321 216L296 230L304 249L332 242C337 250 342 258 348 266L331 289L346 304L369 287C376 293 384 298 393 303L386 331L405 339L419 314C428 317 437 319 447 320L451 349H472L476 320C486 319 495 317 504 314L518 339L537 331L530 303C538 298 546 293 554 287L577 304L592 289L575 266C581 259 586 251 591 242L619 249L627 230L602 216C605 207 607 198 608 188L635 184ZM461 284C400 284 351 235 351 174C351 113 401 64 461 64C521 64 571 113 571 174C571 235 522 284 461 284Z" />
+                    <path className="medium" d="M392 390V369L364 365C363 355 360 346 357 337L380 320L369 302L342 313C336 305 329 299 322 293L333 267L315 256L298 279C289 275 280 273 270 272L266 244H245L241 272C231 273 222 276 213 279L196 256L178 267L189 293C181 299 175 306 169 313L143 302L132 320L155 337C151 346 149 355 148 365L120 369V390L148 394C149 404 152 413 155 422L132 439L143 457L169 446C175 454 182 460 189 466L178 492L196 503L213 480C222 484 231 486 241 487L245 515H266L270 487C280 486 289 483 298 480L315 503L333 492L322 466C330 460 336 453 342 446L368 457L379 439L356 422C360 413 362 404 363 394L392 390ZM255 453C214 453 181 420 181 379C181 338 214 305 255 305C296 305 329 338 329 379C328 420 295 453 255 453Z" />
+                    <path className="small" d="M200 236V215L171 211C169 201 165 193 160 185L178 162L163 147L140 165C132 160 123 156 114 154L110 125H90L86 154C76 156 68 160 60 165L37 147L22 162L40 185C35 193 31 202 29 211L0 215V236L29 240C31 250 35 258 40 266L22 289L37 304L60 286C68 291 77 295 86 297L90 326H111L115 297C125 295 133 291 141 286L164 304L179 289L161 266C166 258 170 249 172 240L200 236ZM100 262C80 262 63 245 63 225C63 205 80 188 100 188C120 188 137 205 137 225C137 245 121 262 100 262Z" />
+                  </g>
+                </svg>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 478 224" className="sparks">
+                <path strokeLinecap="round" d="M172.675 130.318C176.079 94.8544 183.101 52.6838 262.101 32.6837" style={{ "--i": 1 }} />
+                <path strokeLinecap="round" d="M286.569 127.661C299.204 94.3501 317.096 55.5231 398.574 57.0604" style={{ "--i": 4 }} />
+                <path strokeLinecap="round" d="M335.954 194.26C370.153 182.301 412.468 170.335 474.474 222.038" style={{ "--i": 6 }} />
+                <path strokeLinecap="round" d="M265.974 116.351C261.897 79.6629 253.871 36.3728 169.162 24.4022" style={{ "--i": 10 }} />
+                <path strokeLinecap="round" d="M131.475 153.296C107.914 126.572 77.4904 96.5377 1.77821 126.682" style={{ "--i": 3 }} />
+                <path strokeLinecap="round" d="M153.453 170.383C161.298 135.631 167.803 93.3778 99.0048 49.6985" style={{ "--i": 5 }} />
+                <path strokeLinecap="round" d="M309.315 154.41C341.202 155.086 380.493 154.234 434.104 111.701" style={{ "--i": 12 }} />
+                <path d="M109 193C54.6 140.2 66.3333 99 79 85" style={{ "--i": 7 }} />
+              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 401 68" height={68} width={401} className="path">
+                <path strokeOpacity="0.2" strokeLinecap="round" d="M313.89 11.6484C322.652 28.147 374.652 31.5 397.652 0.999998" />
+                <path strokeOpacity="0.3" strokeLinecap="round" d="M290.652 17.0773C294.773 34.8416 359.652 50.5 387.152 24" />
+                <path strokeOpacity="0.5" strokeLinecap="round" d="M265.152 17.0773C274.152 38 323.652 68 362.152 42" />
+                <path strokeOpacity="0.7" strokeLinecap="round" d="M241.75 17.0773C251.653 45 302.152 74.5 332.152 46.5" />
+                <path strokeOpacity="0.9" strokeLinecap="round" d="M220.152 17.0773C230.055 45 274.652 81.5 288.652 47" />
+                <path strokeLinecap="round" d="M200.982 17.0773C209.652 55 239.152 80 245.652 58.5" />
+                <path strokeLinecap="round" d="M200.67 17.0773C192 55 162.5 80 156 58.5" />
+                <path strokeOpacity="0.9" strokeLinecap="round" d="M181.5 17.0773C171.597 45 127 81.5 113 47" />
+                <path strokeOpacity="0.7" strokeLinecap="round" d="M159.903 17.0773C150 45 99.4999 74.5 69.4999 46.5" />
+                <path strokeOpacity="0.5" strokeLinecap="round" d="M136.5 17.0773C127.5 38 77.9999 68 39.4999 42" />
+                <path strokeOpacity="0.3" strokeLinecap="round" d="M111 17.0773C106.879 34.8416 41.9999 50.5 14.4999 24" />
+                <path strokeOpacity="0.2" strokeLinecap="round" d="M87.7628 11.6484C78.9999 28.147 27 31.5 4.00004 0.999998" />
+              </svg>
+            </button>
+          </label>
+        </div>
+      );
+    }
+
+    // ---- Piece 8: Fingerprint Button (Copy/Download) ----
+    function FingerprintButton({ onCopy, onDownload }) {
+      const handleMouseDown = (e) => {
+        // اگر کلیک چپ باشد و نگه داشته شود
+        if (e.button === 0) {
+          const timer = setTimeout(() => {
+            onDownload();
+          }, 800);
+          // ذخیره timer در دیتا برای لغو در mouseup
+          e.currentTarget.dataset.timer = timer;
+        }
+      };
+      const handleMouseUp = (e) => {
+        const timer = parseInt(e.currentTarget.dataset.timer);
+        if (timer) {
+          clearTimeout(timer);
+          e.currentTarget.dataset.timer = null;
+          // اگر زمان کمتر از 800ms بود => کلیک (کپی)
+          // اما ما با clearTimeout جلوی دانلود گرفته شد، پس کپی
+          onCopy();
+        }
+      };
+      return (
+        <div
+          className="fingerprint-container"
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={(e) => {
+            const timer = parseInt(e.currentTarget.dataset.timer);
+            if (timer) { clearTimeout(timer); e.currentTarget.dataset.timer = null; }
+          }}
+        >
+          <svg viewBox="0 0 24 24" height={24} width={24} xmlns="http://www.w3.org/2000/svg" className="fingerprint-svg">
+            <path d="M11.987 4.571q2.636 0 4.973 1.138q2.338 1.137 3.894 3.268q.136.167.083.314q-.053.145-.183.232t-.282.076t-.264-.176q-1.414-1.989-3.595-3.036T11.986 5.34q-2.425 0-4.569 1.067T3.854 9.423q-.131.187-.292.193q-.162.005-.293-.1q-.108-.087-.13-.217t.069-.272q1.569-2.086 3.87-3.271q2.3-1.185 4.909-1.185m0 2.35q3.336 0 5.732 2.223t2.396 5.506q0 1.209-.853 2.019q-.854.81-2.081.81q-1.217 0-2.101-.81t-.884-2.019q0-.863-.64-1.465q-.641-.6-1.531-.6q-.905 0-1.557.596q-.652.595-.652 1.469q0 2.483 1.475 4.146q1.476 1.664 3.751 2.314q.178.057.248.19t.02.284q-.05.133-.162.239t-.317.056q-2.523-.65-4.154-2.56t-1.63-4.669q0-1.211.88-2.023t2.1-.812t2.078.812t.86 2.023q0 .874.658 1.47t1.552.596t1.533-.601t.638-1.465q0-2.949-2.17-4.957q-2.168-2.009-5.18-2.009T6.831 9.7t-2.154 4.945q0 .61.141 1.524t.548 2.115q.055.167-.003.294q-.06.127-.22.202t-.302.005q-.139-.07-.195-.228q-.394-1.033-.566-1.976t-.172-1.93q0-3.284 2.384-5.506t5.696-2.223m.037-4.8q1.575 0 3.076.388q1.5.387 2.903 1.112q.205.106.233.252t-.027.283t-.202.198q-.146.062-.3-.025q-1.306-.733-2.747-1.086q-1.44-.352-2.945-.352q-1.48 0-2.899.375q-1.419.376-2.752 1.063q-.103.067-.255.024t-.214-.186t-.04-.276q.021-.133.163-.22q1.381-.769 2.906-1.16t3.1-.39m.001 7.245q2.286 0 3.913 1.524t1.627 3.76q0 .173-.106.279t-.280.106q-.141 0-.263-.106q-.12-.106-.12-.279q0-1.914-1.417-3.215t-3.355-1.3t-3.349 1.3t-1.41 3.213q0 2.066.719 3.488t2.069 2.882q.15.153.121.305t-.121.244q-.112.112-.263.122t-.283-.122q-1.417-1.511-2.215-3.133t-.797-3.785q0-2.235 1.622-3.760t3.908-1.523m-.05 4.9q.172 0 .28.115q.11.115.11.269q0 1.934 1.378 3.172t3.237 1.238q.246 0 .521-.025t.556-.075q.148-.031.253.043t.155.245q.050.153-.056.267t-.268.164q-.276.067-.595.109q-.318.04-.566.04q-2.168 0-3.776-1.472q-1.609-1.472-1.609-3.706q0-.154.105-.27q.105-.114.276-.114" className="fingerprint-path" />
+          </svg>
+          <div className="scan-line" />
+          <div className="ripple1" />
+          <div className="ripple2" />
+          <div className="glow" />
+          <div className="status">Press to Scan</div>
+        </div>
+      );
+    }
+
+    // ================================================================
+    // 4. MAIN APP
+    // ================================================================
+    function App() {
+      const [page, setPage] = useState('launch'); // 'launch' | 'circuit' | 'filter' | 'scrapper' | 'result'
+      const [filters, setFilters] = useState({ vless: true, vmess: true, hy2: true, proxy: false });
+      const [finalConfigs, setFinalConfigs] = useState([]);
+      const [isProcessing, setIsProcessing] = useState(false);
+      const [showGetStarted, setShowGetStarted] = useState(false);
+
+      // -------- 1. Launch -> Circuit --------
+      const handleLaunch = () => {
+        setPage('circuit');
+        setTimeout(() => {
+          setPage('filter');
+        }, 3000);
+      };
+
+      // -------- 2. Filter toggles --------
+      const toggleFilter = (key) => {
+        setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+      };
+
+      // -------- 3. GET STARTED -> Scrapper + Process --------
+      const handleGetStarted = async () => {
+        setShowGetStarted(true);
+        setPage('scrapper');
+        setIsProcessing(true);
+
+        try {
+          // اگر پروکسی فعال باشد، فقط از فایل پروکسی استفاده کن
+          let rawSource = '';
+          if (filters.proxy) {
+            // فقط پروکسی
+            const proxyUrl = 'https://raw.githubusercontent.com/shervinofpersia/Config/refs/heads/main/ProxyNg.json';
+            try {
+              const text = await fetchWithFallback(proxyUrl);
+              rawSource = text || '';
+            } catch (e) {
+              console.warn('Failed to fetch proxy list', e);
+            }
+          } else {
+            // منابع پیش‌فرض اسپلیتر
+            rawSource = getDefaultSources();
+          }
+
+          // استخراج کانفیگ‌ها
+          let configs = extractConfigs(rawSource);
+          
+          // اگر پروکسی نباشد، فیلترها را اعمال کن
+          if (!filters.proxy) {
+            const remark = '☬SHΞN™';
+            const rules = {
+              protos: new Set(),
+              nets: new Set(['ws', 'grpc', 'tcp', 'http']), // پیش‌فرض
+              ports: null
+            };
+            if (filters.vless) rules.protos.add('vless');
+            if (filters.vmess) rules.protos.add('vmess');
+            if (filters.hy2) { rules.protos.add('hysteria2'); rules.protos.add('hy2'); }
+
+            const bestByKey = new Map();
+            for (const c of configs) {
+              const norm = normalizeConfig(c, remark);
+              if (!norm) continue;
+              const meta = parseMetaQuick(norm);
+              if (!meta.valid) continue;
+              // فیلتر پروتکل
+              if (rules.protos.size && !rules.protos.has(meta.type)) continue;
+              // فیلتر ترانسپورت
+              if (rules.nets.size && !rules.nets.has(meta.net)) continue;
+              const ks = makeKeyScore(norm);
+              if (!ks) continue;
+              const prev = bestByKey.get(ks.key);
+              if (!prev || ks.score > prev.score) {
+                bestByKey.set(ks.key, ks);
+              }
+            }
+            configs = Array.from(bestByKey.values()).sort((a,b)=>b.score-a.score).map(x=>x.cfg);
+          } else {
+            // پروکسی: بدون فیلتر، فقط پاکسازی تکراری‌ها با کلید ساده
+            const remark = '☬SHΞN™';
+            const unique = new Map();
+            for (const c of configs) {
+              const norm = normalizeConfig(c, remark);
+              if (!norm) continue;
+              const ks = makeKeyScore(norm);
+              if (!ks) continue;
+              if (!unique.has(ks.key)) {
+                unique.set(ks.key, ks);
+              }
+            }
+            configs = Array.from(unique.values()).sort((a,b)=>b.score-a.score).map(x=>x.cfg);
+          }
+
+          setFinalConfigs(configs);
+        } catch (err) {
+          console.error(err);
+          setFinalConfigs([]);
+        } finally {
+          setIsProcessing(false);
+          // بعد از اتمام پردازش، به صفحه نتیجه برو
+          setTimeout(() => {
+            setPage('result');
+          }, 1500);
+        }
+      };
+
+      // -------- 4. Copy & Download --------
+      const handleCopy = async () => {
+        if (!finalConfigs.length) return;
+        const text = finalConfigs.join('\n');
+        try {
+          await navigator.clipboard.writeText(text);
+          alert('✅ کپی شد!');
+        } catch (_) {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          alert('✅ کپی شد!');
+        }
+      };
+
+      const handleDownload = () => {
+        if (!finalConfigs.length) return;
+        const blob = new Blob([finalConfigs.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SHEN_Sub_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        alert('✅ دانلود شد!');
+      };
+
+      // رندر صفحات
+      const renderPage = () => {
+        switch (page) {
+          case 'launch':
+            return (
+              <div className="flex-center fade-in" style={{ minHeight: '70vh' }}>
+                <ShenLaunchButton onClick={handleLaunch} />
+              </div>
+            );
+          case 'circuit':
+            return (
+              <div className="fade-in">
+                <CircuitLoader />
+              </div>
+            );
+          case 'filter':
+            return (
+              <div className="flex-center fade-in" style={{ minHeight: '70vh', gap: '40px' }}>
+                <div className="filter-grid">
+                  {['VLESS', 'VMESS', 'HY2', 'PROXY'].map(label => {
+                    const key = label.toLowerCase();
+                    return (
+                      <div
+                        key={key}
+                        className={`filter-item ${filters[key] ? 'active' : ''}`}
+                        onClick={() => toggleFilter(key)}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+                <GetStartedButton onClick={handleGetStarted} isActive={false} />
+              </div>
+            );
+          case 'scrapper':
+            return (
+              <div className="flex-center fade-in" style={{ minHeight: '70vh' }}>
+                <ShenScrapperLoader />
+                {isProcessing && <p style={{ color: '#aaa', marginTop: 20 }}>⏳ در حال پردازش...</p>}
+              </div>
+            );
+          case 'result':
+            return (
+              <div className="flex-center fade-in" style={{ minHeight: '70vh', gap: '30px' }}>
+                <FingerprintButton onCopy={handleCopy} onDownload={handleDownload} />
+                <div style={{ color: '#aaa', fontSize: '14px', textAlign: 'center' }}>
+                  <p>📋 کلیک = کپی در کلیپ‌بورد</p>
+                  <p>📥 نگه‌داشتن = دانلود فایل</p>
+                  <p style={{ marginTop: 10, color: '#60a5fa' }}>تعداد کانفیگ: {finalConfigs.length}</p>
+                </div>
+              </div>
+            );
+          default:
+            return null;
+        }
+      };
+
+      return (
+        <div style={{ width: '100%' }}>
+          {renderPage()}
+        </div>
+      );
+    }
+
+    // ================================================================
+    // 5. RENDER
+    // ================================================================
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
